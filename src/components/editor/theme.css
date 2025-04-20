@@ -1,0 +1,15 @@
+.cm-tooltip.cm-tooltip-autocomplete {
+    background-color: oklch(0.145 0 0);
+    border: 1px solid oklch(0.569 0 0);
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.cm-tooltip.cm-tooltip-autocomplete .cm-completionIcon {
+    padding: 6px;
+}
+
+.cm-tooltip.cm-tooltip-autocomplete .cm-completionLabel {
+    color: #cad3f5;
+    padding: 6px;
+}
