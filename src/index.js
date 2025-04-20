@@ -1,148 +1,54 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import * as esbuild from 'esbuild-wasm'
-import wasmURL from '@/assets/esbuild.wasm?url'
+import '@/globals'
+import { init, compile } from '@/runtime/esbuild'
+import { namespace, pkgNamespace } from '@/constants'
+import { Signal, effect } from '@/lib/signal'
+import { findRoot } from '@/runtime/graph'
+import { d } from '@/lib/debug'
+import { initialNodes, initialEdges } from '@/initialState'
 
-const initialNodes = [
-    {
-        type: 'root',
-        data: {
-            code: `
-            import { add } from 'harmony/math'
-
-            console.log('from main');
-            console.log(add(2, 3)); // 5
-            function App() {
-                return (
-                    <div>
-                        <h1>Hello, world!</h1>
-                    </div>
-                )
-            }
-            console.log(App);
-            const root = document.getElementById('root')
-            console.log(React)
-            ReactDOM.createRoot(root).render(
-                    <App />
-            )
-        `,
-        },
-    },
-    {
-        id: 'math',
-        type: 'jsModule',
-        data: {
-            code: `
-                console.log('Hello, world!');
-
-                export const add = (a, b) => {
-                    return a + b;
-                }
-            `,
-        },
-    },
-    {
-        id: 'log',
-        type: 'jsModule',
-        data: {
-            code: `
-                console.log(math.add(2, 3)); // 5
-            `,
-        },
-    },
-]
-
-const initialEdges = [
-    {
-        source: '1',
-        target: 'math',
-        type: 'harmony-script-import',
-    },
-    {
-        source: 'math',
-        target: 'log',
-        type: 'harmony-script-import',
-    },
-]
+const debug = d('harmony')
 
 const harmonyScripts = new Map()
 
-const createScriptFromNode = ({ id, data: { code } }) => ({
+const createScript = ({ id, data: { code } }) => ({
     id,
     code,
     scriptDeps: new Map(),
     packageDeps: new Set(),
+    dependents: new Map(),
 })
 
+harmonyScripts.set('root', createScript(findRoot(initialNodes)))
+
+const scriptImports = initialEdges.filter(
+    ({ type }) => type === 'harmony-script-import'
+)
+
 for (const node of initialNodes) {
-    if (node.type === 'root') {
-        harmonyScripts.set('root', createScriptFromNode(node))
-    } else if (node.type === 'jsModule') {
-        harmonyScripts.set(node.id, createScriptFromNode(node))
+    if (node.type === 'harmony-jsx-script') {
+        harmonyScripts.set(node.id, createScript(node))
+    }
+}
+
+for (const edge of scriptImports) {
+    const sourceScript = harmonyScripts.get(edge.source)
+    const targetScript = harmonyScripts.get(edge.target)
+
+    if (sourceScript && targetScript) {
+        sourceScript.scriptDeps.set(targetScript.id, targetScript)
+        targetScript.dependents.set(sourceScript.id, sourceScript)
+    } else {
+        debug.error(`Edge ${edge.source} -> ${edge.target} has missing scripts`)
     }
 }
 
 // TODO remove dead branches
 
-const harmonyNamespace = '__HARMONY__'
-const pkgNamespace = `${harmonyNamespace}PACKAGES__`
-window[pkgNamespace] = {}
+await init(harmonyScripts)
 
-const importMap = {
-    ReactDOM,
-}
-window[pkgNamespace] = importMap
+const file = await compile(['harmony/root'])
 
-// Import React everywhere esbuild is annoying otherwise
-window.React = React
-
-const injectDependencies = (code) => {
-    const deps = Object.keys(importMap).map(
-        (as) => `const ${as} = window['${pkgNamespace}']['${as}']`
-    )
-    console.log(deps)
-
-    return deps.join('\n') + '\n' + code
-}
-
-const harmonyLoader = {
-    name: 'harmony-loader',
-    setup(build) {
-        // Intercept import paths starting with /virtual/
-        build.onResolve({ filter: /^harmony\// }, (args) => ({
-            path: args.path,
-            namespace: 'harmony',
-        }))
-        // Provide the file contents from our virtualFiles object
-        build.onLoad({ filter: /.*/, namespace: 'harmony' }, ({ path }) => {
-            if (!path.startsWith('harmony/')) return null
-            const scriptNode = harmonyScripts.get(path.slice(8))
-            if (scriptNode && scriptNode.code) {
-                const contents = injectDependencies(scriptNode.code)
-                return { contents, loader: 'jsx' }
-            }
-            return null
-        })
-    },
-}
-
-async function init() {
-    // Initialize esbuild
-    await esbuild.initialize({ wasmURL })
-}
-await init()
-
-const result = await esbuild.build({
-    format: 'esm',
-    plugins: [harmonyLoader],
-    write: false,
-    bundle: true,
-    entryPoints: ['harmony/root'],
-    jsxFactory: 'React.createElement',
-    jsxFragment: 'React.Fragment',
-})
-
-const blob = new Blob([result.outputFiles[0].text], { type: 'text/javascript' })
+const blob = new Blob([file], { type: 'text/javascript' })
 const url = URL.createObjectURL(blob)
 
-await import(url)
+await import(/* @vite-ignore */ url)
