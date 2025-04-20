@@ -3,16 +3,13 @@
 Create your application from the ground up using no code.
 To proof Harmony work we built the ui using itself.
 
-## Harmony internal working
+## Cool ideas
 
-- first signal 'app started'
-- get initial state
-- create ui components:
- - register keybinding
+- Use the same code to build the UI and the backend
 
-## explanation
+## Concepts
 
-Source
-Sink
-Edge defines the relationship between source and sink
+Node: Have an internal state, a list of edges and can inherit a context
+Edge: defines the relationship between source and sink
+Socket: the type of the edge
 
