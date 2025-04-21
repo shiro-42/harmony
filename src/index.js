@@ -1,54 +1,97 @@
-import '@/globals'
-import { init, compile } from '@/runtime/esbuild'
-import { namespace, pkgNamespace } from '@/constants'
-import { Signal, effect } from '@/lib/signal'
-import { findRoot } from '@/runtime/graph'
-import { d } from '@/lib/debug'
+import { getComfySpace } from '@/globals'
 import { initialNodes, initialEdges } from '@/initialState'
+import { edgeTypes, nodeTypes, isType } from '@/constants'
+import { init, compile } from '@/runtime/esbuild'
+import { exec } from './runtime/loader'
+import { d } from '@/lib/debug'
+import { MultiDirectedGraph } from 'graphology'
+import { bfsFromNode } from 'graphology-traversal/bfs'
+import { createMain, createScript, createPackage } from './runtime/graph'
+import { constantDeclaration, propertyAccess } from './lib/js-builder'
 
 const debug = d('harmony')
 
-const harmonyScripts = new Map()
-
-const createScript = ({ id, data: { code } }) => ({
-    id,
-    code,
-    scriptDeps: new Map(),
-    packageDeps: new Set(),
-    dependents: new Map(),
+const main = new MultiDirectedGraph({
+    type: 'directed',
+    multi: true,
 })
 
-harmonyScripts.set('root', createScript(findRoot(initialNodes)))
+function findMain(nodes) {
+    const roots = nodes.find((n) => isType(n, nodeTypes.main))
+    return createMain(roots)
+}
 
-const scriptImports = initialEdges.filter(
-    ({ type }) => type === 'harmony-script-import'
-)
+const source = findMain(initialNodes)
+main.addNode(source.id, source)
 
 for (const node of initialNodes) {
-    if (node.type === 'harmony-jsx-script') {
-        harmonyScripts.set(node.id, createScript(node))
+    if (isType(node, nodeTypes.harmonyJsxScript)) {
+        main.addNode(node.id, createScript(node))
+    } else if (isType(node, nodeTypes.jsPackage)) {
+        main.addNode(node.id, createPackage(node))
     }
 }
 
-for (const edge of scriptImports) {
-    const sourceScript = harmonyScripts.get(edge.source)
-    const targetScript = harmonyScripts.get(edge.target)
+for (const edge of initialEdges) {
+    if (isType(edge, edgeTypes.scriptImport)) {
+        main.addEdge(edge.source, edge.target)
+    } else if (isType(edge, edgeTypes.packageImport)) {
+        const source = main.getNodeAttributes(edge.source)
+        const target = main.getNodeAttributes(edge.target)
 
-    if (sourceScript && targetScript) {
-        sourceScript.scriptDeps.set(targetScript.id, targetScript)
-        targetScript.dependents.set(sourceScript.id, sourceScript)
-    } else {
-        debug.error(`Edge ${edge.source} -> ${edge.target} has missing scripts`)
+        // source is the script / main
+        // this edge is bi-directional
+        if (isType(source, nodeTypes.harmonyJsxScript, nodeTypes.main)) {
+            source.packageDepencies.add(target.id)
+            target.dependents.add(source.id)
+        } else {
+            target.packageDepencies.add(source.id)
+            source.dependents.add(target.id)
+        }
     }
 }
 
-// TODO remove dead branches
+const reachableNodes = new Set()
 
-await init(harmonyScripts)
+// Start BFS from the main node (source.id)
+bfsFromNode(main, source.id, (node) => {
+    reachableNodes.add(node)
+})
 
-const file = await compile(['harmony/root'])
+// Identify nodes to remove
+const nodesToRemove = []
+for (const node of main.nodes()) {
+    if (!reachableNodes.has(node)) {
+        nodesToRemove.push(node)
+    }
+}
 
-const blob = new Blob([file], { type: 'text/javascript' })
-const url = URL.createObjectURL(blob)
+// Remove unreachable nodes
+for (const nodeToRemove of nodesToRemove) {
+    main.dropNode(nodeToRemove)
+}
 
-await import(/* @vite-ignore */ url)
+const injectDependencies = ({ code, packageDepencies }) => {
+    const deps = [...packageDepencies]
+        .map((n) => constantDeclaration(n, getComfySpace() + propertyAccess(n)))
+        .join('\n')
+
+    return `${deps}\n${code}`
+}
+
+function scriptResolver() {
+    const scripts = new Map()
+    for (const { node, attributes } of main.nodeEntries())
+        scripts.set(node, attributes)
+    return scripts
+}
+
+await init({
+    name: 'harmony',
+    fetch: scriptResolver,
+    onLoad: (code) => injectDependencies(code),
+})
+
+const file = await compile(['harmony/main'])
+
+await debug.trace(() => exec(file), 'Error executing file')

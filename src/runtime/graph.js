@@ -1,15 +1,39 @@
-export function findRoot(nodes) {
-    let root
-    let rCount = 0
+import { nodeTypes } from '@/constants'
 
-    for (const node of nodes) {
-        if (node.type === 'root') {
-            root = node
-            rCount++
-        }
+export const createMain = (node) => {
+    const {
+        id,
+        data: { code },
+    } = node
+
+    return {
+        id,
+        code,
+        type: nodeTypes.main,
+        packageDepencies: new Set(),
+        dependents: new Set(),
     }
-    if (rCount > 1) {
-        throw new Error('Multiple root nodes found')
+}
+
+export const createScript = (node) => {
+    const {
+        id,
+        data: { code },
+    } = node
+    return {
+        id,
+        code,
+        type: nodeTypes.harmonyJsxScript,
+        packageDepencies: new Set(),
+        dependents: new Set(),
     }
-    return root
+}
+
+export const createPackage = (node) => {
+    const { id } = node
+    return {
+        id,
+        type: nodeTypes.jsPackage,
+        dependents: new Set(),
+    }
 }

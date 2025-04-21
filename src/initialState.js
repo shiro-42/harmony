@@ -1,23 +1,14 @@
+import { nodeTypes, edgeTypes } from './constants'
+
 export const initialNodes = [
     {
-        id: 'root',
-        type: 'root',
+        id: 'main',
+        type: nodeTypes.main,
         data: {
             code: `
-            import { add } from 'harmony/math'
+            import { App } from 'harmony/math'
 
-            console.log('from main');
-            console.log(add(2, 3)); // 5
-            function App() {
-                return (
-                    <div>
-                        <h1>Hello, world!</h1>
-                    </div>
-                )
-            }
-            console.log(App);
             const root = document.getElementById('root')
-            console.log(React)
             ReactDOM.createRoot(root).render(
                     <App />
             )
@@ -26,20 +17,22 @@ export const initialNodes = [
     },
     {
         id: 'math',
-        type: 'harmony-jsx-script',
+        type: nodeTypes.harmonyJsxScript,
         data: {
             code: `
-                console.log('Hello, world!');
-
-                export const add = (a, b) => {
-                    return a + b;
+                export function App() {
+                    return (
+                        <div>
+                            <h1>Hello, world!</h1>
+                        </div>
+                    )
                 }
             `,
         },
     },
     {
         id: 'log',
-        type: 'harmony-jsx-script',
+        type: nodeTypes.harmonyJsxScript,
         data: {
             code: `
                 console.log(math.add(2, 3)); // 5
@@ -48,24 +41,24 @@ export const initialNodes = [
     },
     {
         id: 'ReactDOM',
-        type: 'harmony-global-js-package',
+        type: nodeTypes.harmonyPackage,
     },
 ]
 
 export const initialEdges = [
     {
-        source: 'root',
+        type: edgeTypes.scriptImport,
+        source: 'main',
         target: 'math',
-        type: 'harmony-script-import',
     },
     {
+        type: edgeTypes.scriptImport,
         source: 'math',
         target: 'log',
-        type: 'harmony-script-import',
     },
     {
+        type: edgeTypes.packageImport,
         source: 'ReactDOM',
-        target: 'root',
-        type: 'harmony-package-import',
+        target: 'main',
     },
 ]

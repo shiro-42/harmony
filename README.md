@@ -13,3 +13,8 @@ Node: Have an internal state, a list of edges and can inherit a context
 Edge: defines the relationship between source and sink
 Socket: the type of the edge
 
+## TODO
+•	Cache compiled files by graph hash (injectDependencies() checksum + node IDs)
+•	Add file watching and auto recompile on node edit
+•	Inject debug flags into runtime code via getComfySpace()
+•	Eventually wrap scriptResolver() into a reactive signal to support hot reloads

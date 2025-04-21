@@ -21,11 +21,19 @@ const log = {
 
 export function d(label) {
     label = label + ': '
-    const logger = {
+    function logger(...args) {
+        console.log(label, ...args)
+    }
+    Object.assign(logger, {
         warn: (...args) => {
             log.yellow(label, ...args)
         },
         error: (msg, error) => {
+            error ??= new Error(msg)
+            log.red(label, msg, '=>', error)
+            console.error(e)
+        },
+        throw: (msg, error) => {
             error ??= new Error(msg)
             log.red(label, msg, '=>', error)
             console.error(e)
@@ -42,14 +50,14 @@ export function d(label) {
                 const res = fn()
 
                 if (res instanceof Promise) {
-                    return res.catch((error) => logger.error(msg, error))
+                    return res.catch((error) => logger.throw(msg, error))
                 } else {
                     return res
                 }
             } catch (e) {
-                logger.error(msg, e)
+                logger.throw(msg, e)
             }
         },
-    }
+    })
     return logger
 }

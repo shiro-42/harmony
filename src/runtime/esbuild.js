@@ -1,59 +1,53 @@
 import * as esbuild from 'esbuild-wasm'
 import wasmURL from '@/assets/esbuild.wasm?url'
-import { namespace, pkgNamespace } from '@/constants'
+import { namespace } from '@/constants'
 import { d } from '@/lib/debug'
+import { checksum } from '@/lib/crypto'
 
 const debug = d('esbuild')
 
+let folderName
 let initialized = false
 let plugin
-let dependencies = ['ReactDOM']
+let scriptLoader
+let onLoad
 
-export async function init(harmonyScripts) {
+export async function init(opts) {
     debug.info('Initializing esbuild')
     // Initialize esbuild
     await debug.trace(
         () => esbuild.initialize({ wasmURL }),
         'error initializing esbuild'
     )
-    plugin = harmonyLoader(harmonyScripts)
+    folderName = opts.name
+    scriptLoader = opts.fetch
+    onLoad = opts.onLoad
+    plugin = harmonyLoader()
     initialized = true
 }
 
-export function harmonyLoader(harmonyScripts) {
+function harmonyLoader() {
     return {
         name: 'harmony-loader',
         setup(build) {
             // Intercept import paths starting with /virtual/
-            build.onResolve({ filter: /^harmony\// }, (args) => ({
+            const regex = new RegExp(`^${folderName}/`)
+
+            build.onResolve({ filter: regex }, (args) => ({
                 path: args.path,
                 namespace,
             }))
             // Provide the file contents from our virtualFiles object
             build.onLoad({ filter: /.*/, namespace }, ({ path }) => {
-                if (!path.startsWith('harmony/')) return null
-                const scriptNode = harmonyScripts.get(path.slice(8))
-                if (scriptNode && scriptNode.code) {
-                    const contents = injectDependencies(
-                        scriptNode.code,
-                        dependencies
-                    )
-                    return { contents, loader: 'jsx' }
+                if (!path.startsWith(`${folderName}/`)) return null
+                const contents = scriptLoader().get(path.slice(8))
+                if (contents) {
+                    return { contents: onLoad(contents), loader: 'jsx' }
                 }
                 return null
             })
         },
     }
-}
-
-function createConstVar(name) {
-    return `const ${name} = window['${pkgNamespace}']['${name}']`
-}
-
-const injectDependencies = (code, depies) => {
-    const deps = depies.map(createConstVar).join('\n')
-
-    return deps + '\n' + code
 }
 
 function getBuildOptions() {
@@ -71,11 +65,11 @@ function validateBuildResult(result = {}) {
     const { errors = [], warnings = [], outputFiles = [] } = result
 
     if (errors.length > 0) {
-        debug.error('build failed', errors)
+        debug.throw('build failed', errors)
     } else if (warnings.length > 0) {
         debug.warn('build warnings', warnings)
     } else if (outputFiles.length === 0) {
-        debug.error('build: no output files generated', result)
+        debug.throw('build: no output files generated', result)
     }
 }
 
