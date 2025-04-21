@@ -8,30 +8,34 @@ const debug = d('esbuild')
 
 let folderName
 let initialized = false
-let plugin
 let scriptLoader
 let onLoad
+
+async function initESBuild() {
+    if (initialized) return
+    initialized = true
+    // Initialize esbuild
+    await debug.trace(
+        esbuild.initialize({ wasmURL }),
+        'error initializing esbuild'
+    )
+}
 
 export async function init(opts) {
     debug.info('Initializing esbuild')
     // Initialize esbuild
-    await debug.trace(
-        () => esbuild.initialize({ wasmURL }),
-        'error initializing esbuild'
-    )
+    await initESBuild()
     folderName = opts.name
     scriptLoader = opts.fetch
     onLoad = opts.onLoad
-    plugin = harmonyLoader()
-    initialized = true
 }
 
-function harmonyLoader() {
-    return {
+function getBuildOptions(scripts) {
+    const plugin = {
         name: 'harmony-loader',
         setup(build) {
             // Intercept import paths starting with /virtual/
-            const regex = new RegExp(`^${folderName}/`)
+            const regex = RegExp(`^${folderName}/`)
 
             build.onResolve({ filter: regex }, (args) => ({
                 path: args.path,
@@ -40,17 +44,13 @@ function harmonyLoader() {
             // Provide the file contents from our virtualFiles object
             build.onLoad({ filter: /.*/, namespace }, ({ path }) => {
                 if (!path.startsWith(`${folderName}/`)) return null
-                const contents = scriptLoader().get(path.slice(8))
-                if (contents) {
-                    return { contents: onLoad(contents), loader: 'jsx' }
-                }
-                return null
+                const contents = scripts.get(path.slice(8))
+                return contents
+                    ? { contents: onLoad(contents), loader: 'jsx' }
+                    : null
             })
         },
     }
-}
-
-function getBuildOptions() {
     return {
         format: 'esm',
         plugins: [plugin],
@@ -73,17 +73,23 @@ function validateBuildResult(result = {}) {
     }
 }
 
-export async function compile(entryPoints) {
-    const buildOptions = {
-        ...getBuildOptions(),
-        entryPoints,
-    }
+export async function compile(ids) {
+    const entryPoints = ids.map((id) => `${folderName}/${id}`)
+    const scripts = scriptLoader()
+    const buildOptions = { ...getBuildOptions(scripts), entryPoints }
+
     const result = await debug.trace(
-        () => esbuild.build(buildOptions),
+        esbuild.build(buildOptions),
         'error during esbuild build'
     )
 
     validateBuildResult(result)
 
-    return result.outputFiles[0].text
+    const bundle = result.outputFiles[0].text
+
+    const cs = await checksum(bundle)
+
+    console.log('bundle', cs)
+
+    return bundle
 }

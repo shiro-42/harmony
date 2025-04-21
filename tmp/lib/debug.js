@@ -46,21 +46,17 @@ export function d(label) {
             log.cyan(label, ...args)
         },
         trace: (fn, msg) => {
-            if (fn instanceof Promise) return logger.catchPromise(fn, msg)
             try {
                 const res = fn()
 
                 if (res instanceof Promise) {
-                    return logger.catchPromise(res, msg)
+                    return res.catch((error) => logger.throw(msg, error))
                 } else {
                     return res
                 }
             } catch (e) {
                 logger.throw(msg, e)
             }
-        },
-        catchPromise: (promise, msg) => {
-            return promise.catch((error) => logger.throw(msg, error))
         },
     })
     return logger
