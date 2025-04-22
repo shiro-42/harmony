@@ -1,5 +1,5 @@
 import { nodeTypes, edgeTypes } from './constants'
-import { stripExtensions } from './lib/utils'
+import { stripExtensions } from './grimoire/utils'
 
 const rawFiles = import.meta.glob('./ui/*', { query: '?raw' })
 

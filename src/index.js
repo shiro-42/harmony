@@ -1,10 +1,10 @@
 import { getComfySpace } from '@/globals'
 import { initialNodes, initialEdges } from '@/initialState'
-import { exec } from './runtime/loader'
-import { d } from '@/lib/debug'
+import { exec } from './grimoire/loader'
+import { d } from '@/grimoire/debug'
 import { createProgram } from './runtime/graph'
-import { js } from './lib/js-builder'
-import { createCompiler } from './compiler/javascript'
+import { js } from './grimoire/js-builder'
+import { createCompiler } from './compilers/javascript'
 
 const debug = d('harmony')
 
@@ -12,18 +12,29 @@ const debug = d('harmony')
 const main = createProgram(initialNodes, initialEdges)
 
 /**
- * Injects dependencies into the code.
+ * Injects package dependencies as constants into JavaScript code.
  * Example output:
  * ```js
  * const ReactDOM = window[harmonyNamespace]['ReactDOM']
  *
- * // rest of the code
+ * @param {Object} options - The options object.
+ * @param {string} options.code - The original JavaScript code.
+ * @param {Map|Iterable} options.packageDependencies - Map of dependencies to inject.
+ * @returns {string} The modified code with injected dependencies.
  */
-const injectDependencies = ({ code, packageDependencies }) => {
+function injectDependencies({ code, packageDependencies }) {
     const deps = Iterator.from(packageDependencies).map(toInjectedConstant)
     return js.lines([...deps, code])
 }
 
+/**
+ * Converts a given name into a constant declaration with an injected value.
+ * The value is constructed by concatenating the result of getComfySpace() and
+ * accessing a property matching the provided name.
+ *
+ * @param {string} name - The name to be used for both the constant declaration and property access
+ * @returns {Object} A JavaScript constant declaration object
+ */
 const toInjectedConstant = (name) =>
     js.declaration.constant({
         name,
@@ -42,7 +53,6 @@ const scriptResolver = (program) => () => new Map(getScriptMap(program))
 const runtime = {
     name: 'harmony',
     fetch: scriptResolver(main),
-    onLoad: injectDependencies,
 }
 
 const compile = await debug.trace(

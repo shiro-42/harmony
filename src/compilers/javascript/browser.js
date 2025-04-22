@@ -1,7 +1,7 @@
 import * as esbuild from 'esbuild-wasm'
-import wasmURL from '@/assets/esbuild.wasm?url'
+import wasmURL from '@/runes/esbuild.wasm?url'
 import { namespace } from '@/constants'
-import { d } from '@/lib/debug'
+import { d } from '@/grimoire/debug'
 
 const debug = d('esbuild')
 

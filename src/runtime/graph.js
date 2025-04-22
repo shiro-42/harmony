@@ -1,7 +1,7 @@
 import { edgeTypes, nodeTypes, isType } from '@/constants'
 import { MultiDirectedGraph } from 'graphology'
 import { bfsFromNode } from 'graphology-traversal/bfs'
-import { d } from '@/lib/debug'
+import { d } from '@/grimoire/debug'
 
 const debug = d('graph')
 
