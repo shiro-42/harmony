@@ -53,9 +53,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      console-log-colors:
-        specifier: ^0.5.0
-        version: 0.5.0
       esbuild-wasm:
         specifier: ^0.25.2
         version: 0.25.2
@@ -1276,10 +1273,6 @@ packages:
   commander@13.1.0:
     resolution: {integrity: sha512-/rFeCpNJQbhSZjGVwO9RFV3xPqbnERS8MmIQzCtD/zl6gpJuV/bMLuN92oG3F7d8oDEHHRrujSXNUr8fpjntKw==}
     engines: {node: '>=18'}
-
-  console-log-colors@0.5.0:
-    resolution: {integrity: sha512-ixjGY06zMLCnNXeBdDKL6GuS1+/yQ1GorbZ9YsptP6jDgLqk/bBdQ5cTQvVveKUbO8Th6zwIhY8yRwhrpjXk6g==}
-    engines: {node: '>= 4.1.0'}
 
   content-disposition@1.0.0:
     resolution: {integrity: sha512-Au9nRL8VNUut/XSzbQA38+M78dzP4D+eqg3gfJHMIHHYa3bg067xj1KxMUWj+VULbiZMowKngFFbKczUrNJ1mg==}
@@ -3331,8 +3324,6 @@ snapshots:
       '@codemirror/view': 6.36.5
 
   commander@13.1.0: {}
-
-  console-log-colors@0.5.0: {}
 
   content-disposition@1.0.0:
     dependencies:

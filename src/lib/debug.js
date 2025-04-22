@@ -1,67 +1,56 @@
-import { red } from 'console-log-colors'
-import { yellow } from 'console-log-colors'
+const color = (color) => `color: ${color};`
+const bold = () => 'font-weight: bold;'
 
 const log = {
-    yellow: (...args) => {
-        console.log('%c' + args.join(' '), 'color: #f0ad4e; font-weight: bold;')
-    },
-    red: (...args) => {
-        console.log('%c' + args.join(' '), 'color: #d9534f; font-weight: bold;')
-    },
-    blue: (...args) => {
-        console.log('%c' + args.join(' '), 'color: #5bc0de; font-weight: bold;')
-    },
-    cyan: (...args) => {
-        console.log('%c' + args.join(' '), 'color: #5bc0de; font-weight: bold;')
-    },
-    gray: (...args) => {
-        console.log('%c' + args.join(' '), 'color: #ccc; font-weight: bold;')
-    },
+    yellow: (...args) =>
+        console.log('%c' + args.join(' '), color('#f0ad4e') + bold()), // warning
+    red: (...args) =>
+        console.log('%c' + args.join(' '), color('#d9534f') + bold()), // error
+    blue: (...args) =>
+        console.log('%c' + args.join(' '), color('#5bc0de') + bold()), // info
+    cyan: (...args) =>
+        console.log('%c' + args.join(' '), color('#17a2b8') + bold()), // debug
+    gray: (...args) =>
+        console.log('%c' + args.join(' '), color('#6c757d') + bold()), // neutral
 }
 
 export function d(label) {
-    label = label + ': '
+    const prefix = `${label}: `
+
     function logger(...args) {
-        console.log(label, ...args)
+        console.log(prefix, ...args)
     }
+
     Object.assign(logger, {
-        warn: (...args) => {
-            log.yellow(label, ...args)
-        },
+        warn: (...args) => log.yellow('[WARN]', prefix, ...args),
         error: (msg, error) => {
-            error ??= new Error(msg)
-            log.red(label, msg, '=>', error)
-            console.error(e)
+            const err = error ?? new Error(msg)
+            log.red('[ERROR]', prefix, msg)
+            console.error(err)
         },
         throw: (msg, error) => {
-            error ??= new Error(msg)
-            log.red(label, msg, '=>', error)
-            console.error(e)
-            throw e
+            const err = error ?? new Error(msg)
+            log.red('[THROW]', prefix, msg)
+            console.error(err)
+            throw err
         },
-        info: (...args) => {
-            log.blue(label, ...args)
-        },
-        debug: (...args) => {
-            log.cyan(label, ...args)
-        },
+        info: (...args) => log.blue('[INFO]', prefix, ...args),
+        log: (...args) => log.blue('[INFO]', prefix, ...args),
+        debug: (...args) => log.cyan('[DEBUG]', prefix, ...args),
         trace: (fn, msg) => {
             if (fn instanceof Promise) return logger.catchPromise(fn, msg)
             try {
-                const res = fn()
-
-                if (res instanceof Promise) {
-                    return logger.catchPromise(res, msg)
-                } else {
-                    return res
-                }
-            } catch (e) {
-                logger.throw(msg, e)
+                const result = fn()
+                if (result instanceof Promise)
+                    return logger.catchPromise(result, msg)
+                return result
+            } catch (err) {
+                logger.throw(msg, err)
             }
         },
-        catchPromise: (promise, msg) => {
-            return promise.catch((error) => logger.throw(msg, error))
-        },
+        catchPromise: (promise, msg) =>
+            promise.catch((err) => logger.throw(msg, err)),
     })
+
     return logger
 }

@@ -6,12 +6,23 @@ import path from 'node:path'
 
 const host = process.env.TAURI_DEV_HOST
 
+const envs = {
+    desktop: JSON.stringify('desktop'),
+    browser: JSON.stringify('browser'),
+    mobile: JSON.stringify('mobile'),
+    tablet: JSON.stringify('tablet'),
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
+    define: {
+        HARMONY_ENV: envs.desktop,
+    },
     plugins: [wasm(), react(), tailwindcss()],
     resolve: {
         alias: {
-            '@': path.resolve(__dirname, 'src'), // alias `@` to `src`
+            // import '@/...' -> import 'src/...'
+            '@': path.resolve(__dirname, 'src'),
         },
     },
     clearScreen: false, // prevent vite from obscuring rust errors

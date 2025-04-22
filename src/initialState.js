@@ -1,33 +1,28 @@
 import { nodeTypes, edgeTypes } from './constants'
+import { stripExtensions } from './lib/utils'
+
+const rawFiles = import.meta.glob('./ui/*', { query: '?raw' })
+
+const fp = {}
+for (const [path, load] of Object.entries(rawFiles)) {
+    const { default: content } = await load()
+    const prop = stripExtensions(path.slice(5), '.jsx', '.js')
+    fp[prop] = content
+}
 
 export const initialNodes = [
     {
         id: 'main',
         type: nodeTypes.main,
         data: {
-            code: `
-            import { App } from 'harmony/math'
-
-            const root = document.getElementById('root')
-            ReactDOM.createRoot(root).render(
-                    <App />
-            )
-        `,
+            code: fp.app,
         },
     },
     {
         id: 'math',
         type: nodeTypes.harmonyJsxScript,
         data: {
-            code: `
-                export function App() {
-                    return (
-                        <div>
-                            <h1>Hello, world!</h1>
-                        </div>
-                    )
-                }
-            `,
+            code: fp.app2,
         },
     },
     {
@@ -41,7 +36,7 @@ export const initialNodes = [
     },
     {
         id: 'ReactDOM',
-        type: nodeTypes.harmonyPackage,
+        type: nodeTypes.jsPackage,
     },
 ]
 

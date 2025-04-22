@@ -1,10 +1,10 @@
 import { getComfySpace } from '@/globals'
 import { initialNodes, initialEdges } from '@/initialState'
-import { init, compile } from '@/runtime/esbuild'
 import { exec } from './runtime/loader'
 import { d } from '@/lib/debug'
 import { createProgram } from './runtime/graph'
 import { js } from './lib/js-builder'
+import { createCompiler } from './compiler/javascript'
 
 const debug = d('harmony')
 
@@ -33,7 +33,7 @@ const toInjectedConstant = (name) =>
 const getScriptMap = (program) => {
     return Iterator.from(program.nodeEntries()).map(({ node, attributes }) => [
         node,
-        attributes,
+        injectDependencies(attributes),
     ])
 }
 
@@ -45,6 +45,9 @@ const runtime = {
     onLoad: injectDependencies,
 }
 
-await debug.trace(init(runtime), 'Error initializing esbuild')
+const compile = await debug.trace(
+    createCompiler(runtime),
+    'Error creating compiler'
+)
 const file = await debug.trace(compile(['main']), 'Error compiling file')
 await debug.trace(exec(file), 'Error executing file')

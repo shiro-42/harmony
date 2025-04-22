@@ -49,32 +49,36 @@ export function createPackage(node) {
 }
 
 export function createProgram(nodes, edges) {
-    const main = new MultiDirectedGraph({
+    const program = new MultiDirectedGraph({
         type: 'directed',
         multi: true,
     })
 
+    // Add nodes
     const {
         [nodeTypes.main]: [source],
         [nodeTypes.harmonyJsxScript]: jsxScripts,
         [nodeTypes.jsPackage]: jsPackages,
     } = Object.groupBy(nodes, ({ type }) => type)
 
-    main.addNode(source.id, createMain(source))
+    program.addNode(source.id, createMain(source))
     jsxScripts.forEach((script) =>
-        main.addNode(script.id, createScript(script))
+        program.addNode(script.id, createScript(script))
     )
-    jsPackages.forEach((pkg) => main.addNode(pkg.id, createPackage(pkg)))
+    jsPackages.forEach((pkg) => program.addNode(pkg.id, createPackage(pkg)))
 
+    // Add edges
     const {
         [edgeTypes.scriptImport]: scriptImports,
         [edgeTypes.packageImport]: packageImports,
     } = Object.groupBy(edges, ({ type }) => type)
 
-    scriptImports.forEach(({ source, target }) => main.addEdge(source, target))
+    scriptImports.forEach(({ source, target }) =>
+        program.addEdge(source, target)
+    )
     packageImports.forEach(({ source, target }) => {
-        const src = main.getNodeAttributes(source)
-        const dst = main.getNodeAttributes(target)
+        const src = program.getNodeAttributes(source)
+        const dst = program.getNodeAttributes(target)
 
         // source is the script / main
         // this edge is bi-directional
@@ -87,17 +91,23 @@ export function createProgram(nodes, edges) {
         }
     })
 
+    // Remove unreachable nodes
+    shakeGraph(program, source.id)
+
+    return program
+}
+
+function shakeGraph(graph, sourceId) {
     const reachableNodes = new Set()
 
-    // Start BFS from the main node (source.id)
-    bfsFromNode(main, source.id, (node) => {
+    // Start BFS from the graph node (source.id)
+    bfsFromNode(graph, sourceId, (node) => {
         reachableNodes.add(node)
     })
 
     // Identify nodes to remove
-    main.nodes()
+    graph
+        .nodes()
         .filter((node) => !reachableNodes.has(node))
-        .forEach(main.dropNode.bind(main))
-
-    return main
+        .forEach(graph.dropNode.bind(graph))
 }
